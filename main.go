@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/docker/docker/client"
 	"github.com/miekg/dns"
+	"golang.org/x/crypto/ocsp"
 	"log"
 	"os"
 	"strings"
@@ -31,7 +32,6 @@ func resolveName(name string) (result string, err error) {
 }
 
 func handleQueryA(m *dns.Msg, q *dns.Question) {
-	log.Printf("Query for %s\n", q.Name)
 	result, err := resolveName(q.Name)
 	if err != nil {
 		return
@@ -40,6 +40,8 @@ func handleQueryA(m *dns.Msg, q *dns.Question) {
 	rr, err := dns.NewRR(fmt.Sprintf("%s 1 A %s", q.Name, result))
 	if err == nil {
 		m.Answer = append(m.Answer, rr)
+	} else {
+		m.Rcode = ocsp.ServerFailed
 	}
 }
 
@@ -56,6 +58,13 @@ func handleDnsRequest(w dns.ResponseWriter, r *dns.Msg) {
 			case dns.TypeA:
 				handleQueryA(m, &q)
 			}
+		}
+		/**
+		  Since we do not recursive search internet domain name, we have to answer some error code to DNS client.
+		  If we just replied normally, the DNS client may given up, and failed too early.
+		*/
+		if len(m.Answer) == 0 {
+			m.Rcode = ocsp.ServerFailed
 		}
 	}
 
