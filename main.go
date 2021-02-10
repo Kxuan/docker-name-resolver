@@ -6,6 +6,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/miekg/dns"
 	"log"
+	"os"
 	"strings"
 )
 
@@ -72,8 +73,13 @@ func main() {
 
 	dns.HandleFunc(".", handleDnsRequest)
 
-	server := &dns.Server{Addr: "127.0.0.11:53", Net: "udp"}
-	log.Printf("Starting at 127.0.0.11:53\n")
+	addr, got := os.LookupEnv("BIND_ADDRESS")
+	if !got {
+		addr = "127.0.0.11"
+	}
+	bind := fmt.Sprintf("%s:%d", addr, 53)
+	server := &dns.Server{Addr: bind, Net: "udp"}
+	log.Printf("Starting at %s\n", bind)
 	err = server.ListenAndServe()
 	defer server.Shutdown()
 	if err != nil {
