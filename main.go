@@ -14,34 +14,45 @@ import (
 var docker *client.Client
 var ctx context.Context
 
-func resolveName(name string) (result string, err error) {
+func resolveName(name string) (result []string, err error) {
 	firstdot := strings.Index(name, ".")
 	if firstdot < 0 {
-		return "", fmt.Errorf("invalid name")
+		return nil, fmt.Errorf("invalid name")
 	}
 	id := name[0:firstdot]
+
 	r, err := docker.ContainerInspect(ctx, id)
 	if err != nil {
-		return "", fmt.Errorf("not found")
+		return nil, fmt.Errorf("not found, %v", err)
 	}
 	if r.NetworkSettings == nil {
-		return "", fmt.Errorf("no network settings")
+		return nil, fmt.Errorf("no network settings")
 	}
-	result = r.NetworkSettings.IPAddress
+	if r.NetworkSettings.IPAddress != "" {
+		result = append(result, r.NetworkSettings.IPAddress)
+	}
+	for _, bridge := range r.NetworkSettings.Networks {
+		if bridge.IPAddress != "" {
+			result = append(result, bridge.IPAddress)
+		}
+	}
 	return
 }
 
 func handleQueryA(m *dns.Msg, q *dns.Question) {
 	result, err := resolveName(q.Name)
 	if err != nil {
+		log.Printf("%v: %v\n", q.Name, err)
 		return
 	}
 
-	rr, err := dns.NewRR(fmt.Sprintf("%s 1 A %s", q.Name, result))
-	if err == nil {
-		m.Answer = append(m.Answer, rr)
-	} else {
-		m.Rcode = ocsp.ServerFailed
+	for _, ip := range result {
+		rr, err := dns.NewRR(fmt.Sprintf("%s 1 A %s", q.Name, ip))
+		if err == nil {
+			m.Answer = append(m.Answer, rr)
+		} else {
+			m.Rcode = ocsp.ServerFailed
+		}
 	}
 }
 
