@@ -41,7 +41,6 @@ func resolveName(name string) (result []string, err error) {
 func handleQueryA(m *dns.Msg, q *dns.Question) {
 	result, err := resolveName(q.Name)
 	if err != nil {
-		log.Printf("%v: %v\n", q.Name, err)
 		return
 	}
 
