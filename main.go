@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/docker/docker/client"
 	"github.com/miekg/dns"
-	"golang.org/x/crypto/ocsp"
 	"log"
 	"os"
 	"strings"
@@ -51,7 +50,7 @@ func handleQueryA(m *dns.Msg, q *dns.Question) {
 		if err == nil {
 			m.Answer = append(m.Answer, rr)
 		} else {
-			m.Rcode = ocsp.ServerFailed
+			m.Rcode = dns.RcodeRefused
 		}
 	}
 }
@@ -75,7 +74,7 @@ func handleDnsRequest(w dns.ResponseWriter, r *dns.Msg) {
 		  If we just replied normally, the DNS client may given up, and failed too early.
 		*/
 		if len(m.Answer) == 0 {
-			m.Rcode = ocsp.ServerFailed
+			m.Rcode = dns.RcodeRefused
 		}
 	}
 
