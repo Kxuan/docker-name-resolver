@@ -1,6 +1,7 @@
 ALL_OS = linux
 ALL_ARCH = amd64 arm64
-
+GO111MODULE = auto
+export GO111MODULE
 
 define BUILD_TARGET =
 docker-name-resolver-$(1)-$(2): main.go
