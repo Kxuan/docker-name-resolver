@@ -78,7 +78,7 @@ func handleDnsRequest(w dns.ResponseWriter, r *dns.Msg) {
 		}
 	}
 
-	w.WriteMsg(m)
+	_ = w.WriteMsg(m)
 }
 
 func main() {
@@ -97,11 +97,23 @@ func main() {
 		addr = "127.0.0.11"
 	}
 	bind := fmt.Sprintf("%s:%d", addr, 53)
-	server := &dns.Server{Addr: bind, Net: "udp"}
+	udpSvr := &dns.Server{Addr: bind, Net: "udp"}
+	tcpSvr := &dns.Server{Addr: bind, Net: "tcp"}
 	log.Printf("Starting at %s\n", bind)
-	err = server.ListenAndServe()
-	defer server.Shutdown()
+
+	ch := make(chan error)
+	go func() {
+		err := udpSvr.ListenAndServe()
+		defer udpSvr.Shutdown()
+		ch <- err
+	}()
+	go func() {
+		err := tcpSvr.ListenAndServe()
+		defer tcpSvr.Shutdown()
+		ch <- err
+	}()
+	err = <-ch
 	if err != nil {
-		log.Fatalf("Failed to start server: %s\n ", err.Error())
+		log.Fatalf("Failed to start udp_svr: %s\n ", err.Error())
 	}
 }
